@@ -41,7 +41,7 @@ numbers=noenddot]{scrbook}
 \chapter{Linear algebra}
 Note that we consider only real values.
 \section{Gram-Schmidt orthogonalization}
-The Gram-Schmidt orthogonalization is based on orthogonal projections, e.g. the orthogonal projection $\frac{<v, u>} {<u, u>} u$ of a vector $v$ onto a vector $u$, and the fact that the difference $v - \frac{<v, u>}{<u, u>} u$ yields a vector that is orthogonal to the orthogonal projection. This allows us to construct from a set of vectors a set of orthogonal ones in an iterative procedure. Note that the orthogonality of the difference to the projection is obvious from (assuming $u$ is a unit vector):
+The Gram-Schmidt orthogonalization is based on orthogonal projections, e.g. the orthogonal projection $\frac{<v, u>} {<u, u>} u$ of a vector $v$ onto a vector $u$. This allows us to construct from a set of vectors a set of orthogonal ones in an iterative procedure. Note that the orthogonality of the difference $v - \frac{<v, u>}{<u, u>} u$ to the projection is obvious from (assuming $u$ is a unit vector):
 \begin{align}
 \langle <v, u> u, v- <v, u> u \rangle &= \langle <v, u> u, v \rangle - \langle <v, u> u, <v, u> u \rangle \\
 &= <v, u>^2 - <v, u>^2 \underbrace{<u, u>}_{=1} \\
