@@ -7,8 +7,9 @@ def qp(Q, p, G, h, A_in, b_in, mu=.00001, alpha=0.1, max_steps_qp=80, **kwargs):
          min_x      x.T Q x + p.T x
        subject to   A_in x = b_in  and  G x <= h  x => 0.
        
-       Convergence needs to be manually checked. The implementation that
-       adjusts parameters, e.g. mu and alpha, for fast convergence is missing.
+       The implementation which adjusts parameters for fast convergence, 
+       e.g. mu and alpha, is missing. Therefore, convergence needs to be manually
+       checked and paramters retuned for every new problem. 
 
     Parrameters
     -----------
