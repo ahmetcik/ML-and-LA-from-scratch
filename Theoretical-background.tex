@@ -1,0 +1,580 @@
+\RequirePackage{fix-cm} 											% 
+\documentclass[11pt, a4paper, parskip=half*, bibliography=totoc, cleardoublepage=empty, final,
+numbers=noenddot]{scrbook}
+
+
+\usepackage[ansinew]{inputenc}                                                                          
+\usepackage[automark]{scrpage2}                                                                        
+\usepackage{fixltx2e}                                                                                           
+
+\usepackage[linktocpage]{hyperref}
+\usepackage{breakurl}
+
+
+
+\usepackage[english]{babel}
+\usepackage{multicol} 
+\usepackage{multirow}	
+
+\usepackage{cite}
+
+\usepackage{bm}
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{subcaption}
+\usepackage{rotating}
+\usepackage{fixmath}
+\usepackage{braket}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\usepackage[margin=10pt,labelfont=bf]{caption}
+
+\usepackage[top=2.5cm,left=3.5cm,right=2.5cm,bottom=3cm]{geometry}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{lmodern}
+\captionsetup{justification=raggedright,singlelinecheck=false}
+
+
+\begin{document}
+\chapter{Linear algebra}
+Note that we consider only real values.
+\section{Gram-Schmidt orthogonalization}
+The Gram-Schmidt orthogonalization is based on orthogonal projections, e.g. the orthogonal projection $\frac{<v, u>} {<u, u>} u$ of a vector $v$ onto a vector $u$, and the fact that the difference $v - \frac{<v, u>}{<u, u>} u$ yields a vector that is orthogonal to the orthogonal projection. This allows us to construct from a set of vectors a set of orthogonal ones in an iterative procedure. Note that the orthogonality of the difference to the projection is obvious from (assuming $u$ is a unit vector):
+\begin{align}
+\langle <v, u> u, v- <v, u> u \rangle &= \langle <v, u> u, v \rangle - \langle <v, u> u, <v, u> u \rangle \\
+&= <v, u>^2 - <v, u>^2 \underbrace{<u, u>}_{=1} \\
+&= 0.
+\label{eq:orthogonal-proj-zero}
+\end{align}
+Let $S_V = \{v_1, v_2, ..., v_n\}$ be a set of vectors and $d$ be the dimension of the space $V$ spanned by the vectors in $S_V$. Then the Gram-Schmidt orthogonalization (or here orthonormalization) generates an orthonormal basis set $S_U = \{u_1, u_2, ..., u_d\}$ in $V$ by:
+\begin{itemize}
+\item[1.] $u_1 = \frac{v_1}{\| v_1\|}$
+\item[2.] For all $i>1$: first
+\begin{equation}
+\tilde{u}_i = v_i - \sum_{k=1}^{i-1} <v_i, u_k> u_k     ,
+\label{eq:gs-step}
+\end{equation} 
+then $u_i = \frac{\tilde{u}_i}{\| \tilde{u}_i\|}$.
+\end{itemize}
+Zero vectors, which occur when there is a linear dependency in $S_V$, are not added to $S_U$. The sum in Eq. \ref{eq:gs-step} gives the orthogonal projection of the vector $v_i$ onto the hyperplane spanned by the $i-1$ vectors $u_k$. Note that in the code, we implement the orthogonalization also for functions (not only arrays), i.e. in ``ortho\_basis.py''. If arrays (matrices) are used, the second step can be calculated via (in case of the standard scalar product)
+\begin{equation}
+\tilde{\bm{u}}_i = \bm{v}_i - \bm{U}_{i-1}  \bm{U}^T_{i-1}  \bm{v}_i     ,
+\end{equation} 
+where $\bm{U}_{i-1}$ denotes the matrix with columns $\bm{u}_{1}, ..., \bm{u}_{i-1}$. \\
+Better numerical stability can be obtained by the \textbf{modified Gram-Schmidt} orthogonalization which replaces the second step of the not-modified one by:
+\begin{itemize}
+\item[1.] Let $k=1$ and $\tilde{u}^{(1)}_i = v_i$.
+\item[2.] Calculate, first
+\begin{equation}
+\tilde{u}^{(k+1)}_i = \tilde{u}^{(k)}_i -  <\tilde{u}^{(k)}_i, u_k> u_k     ,
+\end{equation} 
+then $u^{(k+1)}_i = \frac{\tilde{u}^{(k+1)}_i}{\| \tilde{u}^{(k+1)}_i\|}$.
+\item[3.] If $k=i-1$ stop and $u_i = u^{(k+1)}_i$. Otherwise, let $k = k+1$ and continue with 2. step (of this algorithm).
+\end{itemize}
+
+\section{QR decomposition}
+The matrix $\bm{A} \in \mathbb{R}^{m \times n}$ is decomposed into an orthogonal matrix $\bm{Q}$ and an upper triangular  matrix $\bm{R}$:
+\begin{equation}
+\bm{A}=\bm{Q} \bm{R}.
+\end{equation}
+In our implementation both $\bm{Q}$ and $\bm{R}$ do not need to be square matrices. \\
+\subsection{Using Gram-Schmidt orthogonalization}
+Using the Gram-Schmidt process an orthogonal basis set is found (for the column space of $\bm{A}$) by transforming the columns of $\bm{A}$. $\bm{Q}$ is given by the new orthogonal vectors. Therefore, we use the size convention $\bm{Q} \in \mathbb{R}^{m \times \text{rank}(A)}$ and $\bm{R} \in \mathbb{R}^{\text{rank}(A) \times n}$. One way to obtain $\bm{R}$ is by calculating $\bm{R} = \bm{Q}^T \bm{A}$. However, in practice the whole matrix multiplication does not need to be carried out because some entries are known to become zero.
+\subsection{Using Housholder reflections}
+The QR decompositions based on Housholder reflections is known to be more numerically stable than the Gram-Schmidt process (however, I could not verify this statement through the cases I have looked into with the here presented codes.) The Housholder reflection is a linear transformation that reflects a vector $x$ about some (hyper-)plane by
+\begin{equation}
+x' = x - 2 <x, v> v, 
+\label{eq:housholder}
+\end{equation}
+where $v$ is a unit vector orthogonal to the hyperplane. The reflected vector $x'$ has the same length as $x$:
+\begin{align}
+\| x' \|^2 &= \langle x - 2 <x, v> v, x - 2 <x, v> v \rangle \\
+&= <x,x> - 2 \langle x, 2 <x, v> v \rangle + 4 <x, v>^2 \underbrace{<v, v>}_{=1}\\
+&= <x, x> - 4 <x, v>^2 + 4 <x, v>^2 \\
+&= \| x\|^2.
+\end{align} 
+Now, let us define:
+\begin{align}
+u &= x - \| x \| e, \label{eq:proj-v1}\\
+v &= \frac{u}{\| u \|},
+\label{eq:proj-v2}
+\end{align}
+where $e$ a unit vector. Then, with $<e,e>=1$,
+\begin{align}
+x' &= x - 2 \frac{<x, x - \| x \| e> }{<x - \| x \|  e, x - \| x \|  e>} (x - \| x \|  e) \\
+&= x - 2 \frac{<x, x> - \| x \| <x,  e> }{<x,x> - 2 \| x \| <x, e> x + \| x \|^2 <e, e> } (x - \| x \|  e) \\
+&= x - 2 \frac{ \| x \|^2 - \| x \| <x,  e> }{ \| x \|^2 - 2 \| x \| <x, e> x + \| x \|^2  } (x - \| x \|  e) \\
+&= x - 2 \frac{1}{2} (x - \| x \|  e) \\
+&=  \| x \| e \\
+\end{align}
+So, interestingly, with the choice in Eq. \ref{eq:proj-v1} and \ref{eq:proj-v2} for $v$ the Housholder reflection becomes a projection of $x$ onto the unit vector $e$. Crucially, if we chose for $e$ the vector $(1, 0, 0, ...)^T$ the Housholder reflection based on this $v$ will transform $x$ into a vector where only one element is non-zero. As a consequence, we can build a clever iterative procedure to apply this reflection (partially) to every column of a matrix $\bm{A}$ and transform $\bm{A}$ to the targeted upper triangular form $\bm{R}$ of the QR decompostion, as described in the following.
+
+Consider matrix form. We can rewrite Eq. \ref{eq:housholder} to
+\begin{align}
+\bm{x}' = \bm{Q} \bm{x}
+\end{align}
+with the square matrix
+\begin{align}
+\bm{Q} = \bm{I} - 2 \bm{v} \bm{v}^T.
+\end{align}
+In the first iteration step of the QR decomposition we define  
+\begin{align}
+\bm{u}_1 &= \bm{A}_1 - \| \bm{A}_1 \| \bm{e}_1,\\
+\bm{v}_1 &= \frac{\bm{u}_1 }{\|\bm{u}_1 \|},
+\end{align}
+where $\bm{A}_1$ is the first column of $\bm{A}$ and $\bm{e}_1\ = (1, 0,  ..., 0)^T$ a unit vector. Then, with $\bm{Q}_1 = \bm{I} - 2 \bm{v}_1 \bm{v}^T_1$,
+\begin{align}
+\bm{Q}_1 \bm{A}_1 = \begin{pmatrix}
+\| \bm{A}_1 \| \\
+0 \\
+\vdots\\
+0
+\end{pmatrix}
+\end{align}
+and
+\begin{align}
+\bm{Q}_1 \bm{A} = \begin{pmatrix}
+\| \bm{A}_1 \| & \star &\hdots & \star \\
+0 \\
+\vdots & & \bm{A}' & \\
+0
+\end{pmatrix}.
+\end{align}
+In the next step this is repeated for the matrix $\bm{A}'$ ($\bm{A}$ with deleted first row and column), where now $\bm{v}_2$ is based on the first column $\bm{A}_1'$  of $\bm{A}'$, resulting in a matrix $\bm{Q}_2'$. To keep the original matrix sizes, $\bm{Q}_k'$ of any iteration step $k$ is extended by: 
+\begin{align}
+\bm{Q}_k  = \begin{pmatrix}
+\bm{I}_{k-1} & 0\\
+0 &  \bm{Q}_k'\\
+\end{pmatrix}.
+\end{align}
+After $t=\min(m-1, n)$ iterations, the transpose of the final orthogonal matrix $\bm{Q}$ and the triangular matrix $\bm{R}$ of the QR decomposition are given by
+\begin{align}
+\bm{Q}^T  = \bm{Q}_t \cdots \bm{Q}_2 \bm{Q}_1
+\end{align}
+and 
+\begin{align}
+\bm{R}  = \bm{Q}^T \bm{A}.
+\end{align}
+
+\section{Eigenvalues and -vectors }
+The eigenvalue equation is written 
+\begin{equation}
+\bm{A} \bm{v} = \lambda \bm{v}, 
+\end{equation}
+where $\bm{A}$ is a square matrix, the non-zero vector $\bm{v}$ is the eigenvector, and the scalar $\lambda$ is the eigenvalue. The eigenvectors yield the set of vectors which are not rotated in a linear transformation based on $\bm{A}$ but only scaled or inverted in direction.
+\subsection{QR algorithm}
+The (practical) QR algorithm (without shifts) calculates the eigenvalues of $\bm{A}$ using QR decompositions  iteratively. We initialize $\bm{A}_0 = \bm{A}$ and calculate at each iteration
+\begin{equation}
+\bm{A}_{k+1} = \bm{R}_k \bm{Q}_k,
+\end{equation}
+where $\bm{R}_k$ and $\bm{Q}_k$ are obtained from the QR decomposition: $\bm{A}_{k} = \bm{Q}_k \bm{R}_k$. Given that all $\bm{A}_k$ are similar,
+\begin{equation}
+\bm{A}_{k+1} = \bm{R}_k \bm{Q}_k = \bm{Q}^{-1}_k \bm{Q}_k \bm{R}_k \bm{Q}_k = \bm{Q}^{-1}_k \bm{A}_k \bm{Q}_k,
+\end{equation}
+they all have the same eigenvalues, as:
+\begin{align}
+\bm{A}_{k+1} \bm{v} &= \bm{Q}^{-1}_k \bm{A}_k \bm{Q}_k \bm{v} \\
+\lambda \bm{v} &= \bm{Q}^{-1}_k \bm{A}_k \bm{Q}_k \bm{v} \\
+\lambda \bm{Q}_k \bm{v} &=  \bm{A}_k \bm{Q}_k \bm{v}.
+\end{align}
+So every eigenvalue $\lambda$ of $\bm{A}_{k+1}$ is also an eigenvalue of $\bm{A}_{k}$, where the corresponding eigenvector of $\bm{A}_{k}$ is  $\bm{Q}_k \bm{v}$. And one can similarly show that every eigenvalue of $\bm{A}_{k}$ is an eigenvalue of $\bm{A}_{k+1}$. \\
+Under some conditions, the matrices $\bm{A}_{k}$ will converge against a triangular matrix in the iterative procedure. The eigenvalues of a triangular matrix are given by its diagonal elements. If $\bm{A}$ is symmetric, then the product of the matrices $\cdots \bm{Q}_{2} \bm{Q}_{1} \bm{Q}_{0}$ yield a matrix whose columns are the eigenvectors of $\bm{A}$.
+
+
+
+
+
+\section{Singular value decomposition}
+The matrix $\bm{A} \in \mathbb{R}^{m \times n}$ is decomposed into:
+\begin{equation}
+\bm{A} = \bm{U} \bm{S} \bm{V}^T,
+\end{equation}
+where $\bm{U} \in \mathbb{R}^{m \times m}$ and $\bm{V} \in \mathbb{R}^{n \times n}$ are orthogonal matrices and  $\bm{S} \in \mathbb{R}^{m \times n}$ is a diagonal rectangular matrix. The diagonal entries of $\bm{S}$ are given by the singular values of $\bm{A}$, i.e. the square roots of non-negative eigenvalues of $\bm{A}^T \bm{A}$. However, in this code, $\bm{U}$ and $\bm{V}$ are not necessarily square matrices but shaped by $\text{rank}(\bm{A})$ while $\bm{S}$ is square. We compute the decomposition by:
+\begin{itemize}
+\item[1.] Calculate the eigenvalues and -vectors of $\bm{A}^T \bm{A}$.
+\item[2.] Build the matrix $\bm{V}$ of the eigenvectors as columns and the rectangular diagonal matrix $\bm{S}$  with square roots of the non-zero eigenvalues.
+\item[3.] Calculate $\bm{U} = \bm{A} \bm{V} \bm{S}^{-1}$.
+\end{itemize}
+Interestingly, when defining a linear transformation $T$ with $\bm{A}$ from $K^n$ to $K^m$, then 
+\begin{align}
+T(\bm{V}_i) &= \sigma_i \bm{U}_i \ \text{ for } \ i = 1,..., \text{rank}(\bm{A})\\
+T(\bm{V}_i) &= 0 \ \text{ for } \ i > \text{rank}(\bm{A}).
+\end{align}
+This means that one can find orthonormal bases of $K^n$ and $K^m$ such that $T$ maps the $i$-th basis vector of $K^n$ to a non-negative multiple of the $i$-th basis vector of $K^m$, and yields zero for the remaining basis vectors. 
+
+\section{Pseudoinvers}
+In order to calculate the generalized inverse $\bm{A}^+ \in \mathbb{R}^{n \times m}$ of a matrix  $\bm{A} \in \mathbb{R}^{m \times n}$ that is non-square or not invertible, we use the singular value decomposition $\bm{A} = \bm{U} \bm{S} \bm{V}^T$:
+\begin{equation}
+\bm{A}^+ = \bm{V} \bm{S}^{-1} \bm{U}^T.
+\end{equation}
+This definition fulfills the Moore-Penrose conditions that define a pseudoinverse:
+\begin{itemize}
+\item[1.] $\bm{A} \bm{A}^+ \bm{A} = \bm{A}^+$
+\item[2.] $\bm{A}^+ \bm{A} \bm{A}^+ = \bm{A}$
+\item[3.] $(\bm{A} \bm{A}^+)^T = \bm{A} \bm{A}^+$
+\item[4.] $(\bm{A}^+ \bm{A})^T = \bm{A}^+ \bm{A}$.
+\end{itemize}
+
+\section{Cholesky decomposition} \label{sec:cholesky}
+The Cholesky decomposition of a positive-definite matrix $A \in \mathbb{n \times n}$ is given by
+\begin{equation}
+\bm{A} = \bm{L} \bm{L}^T
+\end{equation}
+where $\bm{L} \in \mathbb{R}^{n \times n}$ is a lower triangular matrix with positive diagonal elements. The decomposition can be shown using the QR decomposition.
+A positive-definitem matrix $\bm{A}$ can be written as a product of its square root matrix, $\bm{A} = \bm{B} \bm{B}^T$. With $\bm{B}^T = \bm{Q} \bm{R}$ and $\bm{R} = \bm{L}^T$, we have:
+\begin{align}
+\bm{A} = \bm{B} \bm{B}^T = \bm{R}^T \bm{Q}^T \bm{Q} \bm{R} = \bm{R}^T \bm{R} = \bm{L} \bm{L}^T. 
+\end{align}
+The elements of $\bm{L}$ are determined by:
+\begin{align}
+L_{j,j} &= \sqrt{A_{j, j} - \sum_{k=1}^{j-1} L_{j,k}^2},\\
+L_{i,j} &= \frac{1}{L_{j,j}} \left( A_{i, j} - \sum_{k=1}^{j-1} L_{i,k} L_{j,k}\right) \quad \text{for} \quad i>j.
+\end{align}
+The Cholesky decomposition is useful for solving $\bm{A} \bm{x} = \bm{b}$. The equation is rewritten: $\bm{L} \bm{L}^T \bm{x} = \bm{b}$. Then one can solve first $\bm{L}  \bm{y} = \bm{b}$ using forward substitution and next $ \bm{L}^T \bm{x} = \bm{y}$ via back substitution.
+
+
+\chapter{Quadratic programming} \label{ch:qp}
+Consider the optimization problem:
+\begin{align}
+\min_{\bm{x}} \quad &\frac{1}{2} \bm{x}^T \bm{Q} \bm{x} + \bm{p}^T \bm{x}   \\
+\text{subject to} \quad &\bm{A} \bm{x} = \bm{b} \\
+                  &\bm{G} \bm{x} \leq \bm{h} \\
+                  &\bm{x} \geq \bm{0}.
+\end{align} 
+This problem is solved by quadratic programming. Before that, we transform the inequality constraint $\bm{G} \bm{x} \leq \bm{h}$ to an equality constraint, by introducing slack variables $\bm{\xi} >\bm{0}$ such that  \mbox{$\bm{G} \bm{x} + \bm{\xi} \leq \bm{h}$}. This transforms the constraints to:
+\begin{align}
+\begin{pmatrix}
+\bm{A} & \bm{0} \\
+\bm{G} & \bm{I}
+\end{pmatrix} 
+\begin{pmatrix}
+\bm{x} \\
+\bm{\xi}
+\end{pmatrix} 
+&= 
+\begin{pmatrix}
+\bm{b} \\
+\bm{h}
+\end{pmatrix}, \\
+\begin{pmatrix}
+\bm{x} \\
+\bm{\xi}
+\end{pmatrix} 
+&\geq \bm{0}.
+\end{align} 
+From now we will assume that this is already taken care of (also the right vectorizations in the implementation) and that it is enough to consider a problem of the form:
+\begin{align}
+\min_{\bm{x}} \quad &\frac{1}{2} \bm{x}^T \bm{Q} \bm{x} + \bm{p}^T \bm{x}   \\
+\text{subject to} \quad &\bm{A} \bm{x} = \bm{b} \\
+                  &\bm{x} \geq \bm{0}.
+\end{align}
+We will solve this problem by the primal-dual interior-point method.\\
+First we will reformulate the problem based on minimizing a function with constraints to minimizing a function with further penalty terms, using the method of Lagrange multipliers and introducing a logarithmic barrier function for the non-negative variables to force almost all iterates to stay in the feasible set (space of $\bm{x}$ fulfilling the constraints). Define the Lagrange function:
+\begin{align}
+\mathcal{L} = \frac{1}{2} \bm{x}^T \bm{Q} \bm{x} + \bm{p}^T \bm{x} - \bm{\lambda}^T (\bm{A} \bm{x} - \bm{b}) - \mu \sum_i \log{x_i},
+\end{align}
+where $\bm{\lambda} > \bm{0}$ and $\mu > 0$. For a given $\mu$, the minimum point satisfies the Karush-Kuhn-Tucker conditions:
+\begin{align}
+\nabla_{\bm{x}} \mathcal{L} &=  \bm{Q} \bm{x} + \bm{p} -  \bm{A} \bm{\lambda}^T -  \mu \bm{\chi} = 0,\\
+\nabla_{\bm{\lambda}} \mathcal{L} &=  \bm{A} \bm{x} - \bm{b} = 0,
+\end{align}
+where $\chi_i = 1/x_i$. By defining $\bm{s} = \mu \bm{\chi}$ the equation to be solved becomes:
+\begin{align}
+\bm{f}(\bm{x}, \bm{\lambda}, \bm{s}) = \bm{0}
+\end{align} 
+with
+\begin{align}
+\bm{f}(\bm{x}, \bm{\lambda}, \bm{s}) = 
+\begin{pmatrix}
+\bm{Q} \bm{x} + \bm{p} -  \bm{A} \bm{\lambda}^T - \bm{s} \\
+\bm{A} \bm{x} - \bm{b} \\
+\bm{X} \bm{s} - \bm{\mu}
+\end{pmatrix},
+\end{align} 
+where $\bm{X} = \text{diag}(\bm{x})$ is a diagonal with elements of $\bm{x}$ and $\bm{\mu}$ is a vector full of $\mu$. We will solve this problem using Newtons method, i.e. an iterative procedure to find the root, where at each step, $x$ is updated by $\Delta x$, with $f(x)' \Delta x= f(x)$. The Jacobian matrix (gradients of $\bm{f}$) is denoted by:
+\begin{align}
+\bm{J}(\bm{x}, \bm{\lambda}, \bm{s}) = 
+\begin{pmatrix}
+\bm{Q} &  -\bm{A}^T & - \bm{I} \\
+\bm{A} & \bm{0} & \bm{0} \\
+\bm{S} & \bm{0} & \bm{X}
+\end{pmatrix},
+\end{align}
+where $\bm{S}=\text{diag}(\bm{s})$.
+Then, at each iteration $k$, we solve the linear system
+\begin{align}
+\bm{J}(\bm{t}^k) \bm{d} = \bm{f}(\bm{t}^k),
+\end{align}
+where $\bm{t}^k = (\bm{x}^k, \bm{\lambda}^k, \bm{s}^k)$, and then update $\bm{t}^{k+1} = \bm{t}^{k} + \alpha \bm{t}^{k}$. Note that this gives a minimum point $\bm{x}_\mu$ only for a given $\mu$. However, by decreasing $\mu$, $x_\mu$ will converge towards the solution of the problem. In practice, $\mu$ (and also $\alpha$) could be updated at each iteration $k$ of the Newton(-like) method.
+
+
+\chapter{Machine learning}
+We consider a data set of $n$ input-output pairs $\{(\bm{x}_1, y_1), ..., (\bm{x}_n, y_n)\}$. $y_i$ represents the value of a targeted property of the data point $i$ to be predicted by a vectorial input (representation of the data point) $\bm{x}_i \in \mathbb{R}^m$ of the data point. Often, the goal is to identify a function $f$ out of a function space $\mathcal{F}$ in order to describe the input-output relationship. A general formulation of the ML optimization problem is given by 
+\begin{equation}
+\argmin_{f \in \mathcal{F}} \sum_{i=1}^n L(f(\bm{x}_i), y_i)+\lambda r(f),
+\label{eq:opt-ml}
+\end{equation}
+where $L$ is a loss function and $r(f)$ is a measurement of the \textit{complexity} of $f$. The parameter $\lambda \geq 0$ regulates the compromise between the accuracy and a low complexity of the model. One reason for regularization is to avoid \textit{overfitting} (fitting \textit{unimportant fluctuations}) in order to increase the prediction accuracy on data points out of the training set. The choice of $\mathcal{F}$, $L$ and $k$ determines the ML method. All supervised-learning based methods used in the code are based on the squared error loss $ L(f(\bm{x}_i),  y_i) = (f(\bm{x}_i)- y_i)^2$.\\
+
+In the following sections we write many equations in matrix form and yield the $n$ data points as a target vector $\bm{y} \in \mathbb{R}^n$ and an input matrix $\bm{X} \in \mathbb{R}^{n \times m}$. We will assume that $\bm{X}$ is standardized to have zero mean and variance one, for numerical or conceptional reasons.
+
+\section{Linear regression}
+The most basic and widely used machine-learning method is linear regression. One reason is that many linear-regression problems can be solved by linear algebra and convex optimization. The least-squares problem
+\begin{equation}
+\argmin_{\bm{c} \in \mathbb{R}^m} \| \bm{y} - \bm{X} \bm{c} \|^2
+\label{eq:ls}
+\end{equation}
+formulates the fundament of linear regression analysis determining the regression coefficients $\bm{c}$ of a linear model $f(\bm{x}) = \bm{x}^T \bm{c}$. Its solution is given by the closed-form expression $\bm{c}^* = (\bm{X}^\text{T}\bm{X})^{-1}\bm{X}^\text{T} \bm{y}$, which gives the orthogonal projection $\text{Proj}_{\mathcal{C}(\bm{X})}(\bm{y}) = \bm{X} \bm{c}^*$ of $\bm{y}$ onto the column space $\mathcal{C}(\bm{X}) = \{ \bm{X} \bm{c} \in \mathbb{R}^n  : \bm{c} \in \mathbb{R}^m \}$ of $\bm{X}$.\\ 
+The fact that the orthogonal projection minimizes the Euclidean distance in Eq. \ref{eq:ls} is clear because any other vector $\bm{X} (\bm{c}^* - \bm{k})$ with nonzero $\bm{k}$ will have a higher distance to $\bm{y}$ due to the orthogonality \mbox{$<\text{Proj}_{\mathcal{C}(\bm{X})}(\bm{y}), \bm{X} \bm{k}> = 0$} (using Pytagoras theorem):
+\begin{align}
+\| \bm{y} -  \text{Proj}_{\mathcal{C}(\bm{X})}(\bm{y}) +\bm{X}\bm{k}\|^2 &= \| \bm{y} -  \text{Proj}_{\mathcal{C}(\bm{X})}(\bm{y}) \|^2 + \| \bm{X}\bm{k} \|^2 \\
+&> \| \bm{y} -  \text{Proj}_{\mathcal{C}(\bm{X})}(\bm{y}) \|^2.
+\end{align}
+
+We can calculate the least squares solution using the singular value decomposition by (note that we use square $\bm{S}$):
+\begin{align}
+\bm{c}^* &= (\bm{X}^\text{T}\bm{X})^{-1}\bm{X}^\text{T} \bm{y} \\
+&= (\bm{V} \bm{S} \bm{U}^T \bm{U} \bm{S} \bm{V}^T)^{-1}\bm{X}^\text{T} \bm{y}\\
+&= (\bm{V} \bm{S}\bm{S} \bm{V}^T)^{-1}\bm{X}^\text{T} \bm{y}\\
+&= (\bm{V} \bm{S}^{-1}\bm{S}^{-1} \bm{V}^T )\bm{X}^\text{T} \bm{y}\\
+&= \bm{V} \bm{S}^{-1}\bm{S}^{-1} \bm{V}^T \bm{V} \bm{S} \bm{U}^T \bm{y} \\
+&= \bm{V} \bm{S}^{-1} \bm{U}^T \bm{y}. 
+\label{eq:ls-svd}
+\end{align}
+
+
+
+In order to avoid overfitting (and also numerical instability), the problem \ref{eq:ls} is often extended by an $\ell_2$ penalty \mbox{$\lambda \| c \|^2_2 = \lambda \| c \|^2$} (linear ridge regression):
+\begin{equation}
+\argmin_{\bm{c} \in \mathbb{R}^m} \| \bm{y} - \bm{X} \bm{c} \|^2+ \lambda \| \bm{c} \|^2.
+\label{eq:ridge}
+\end{equation}
+The solution to this problem is given by  $\bm{c} = (\bm{X}^\text{T}\bm{X}+\lambda \bm{I})^{-1}\bm{X}^\text{T} \bm{y}$, where $\bm{I} \in \mathbb{R}^{m \times m}$ is the identity matrix.
+In terms of singular value decomposition, we can write the solution:
+\begin{align}
+\bm{c}^* &= (\bm{X}^\text{T}\bm{X} + \lambda \bm{I})^{-1}\bm{X}^\text{T} \bm{y} \\
+&= (\bm{V} \bm{S} \bm{U}^T \bm{U} \bm{S} \bm{V}^T + \lambda \bm{I})^{-1}\bm{X}^\text{T} \bm{y}\\
+&= (\bm{V} \bm{S}\bm{S} \bm{V}^T + \lambda \bm{I})^{-1}\bm{X}^\text{T} \bm{y}\\
+&= (\bm{V} \bm{S}\bm{S} \bm{V}^T + \lambda \bm{I}\bm{V} \bm{V}^T)^{-1}\bm{X}^\text{T} \bm{y}\\
+&= (\bm{V} [\bm{S}\bm{S} + \lambda \bm{I}] \bm{V}^T)^{-1}\bm{X}^\text{T} \bm{y}\\
+&= \bm{V} (\bm{S}\bm{S} + \lambda \bm{I})^{-1} \bm{V}^T \bm{X}^\text{T} \bm{y}\\
+&= \bm{V} (\bm{S}\bm{S} + \lambda \bm{I})^{-1} \bm{V}^T \bm{V} \bm{S} \bm{U}^T \bm{y}\\
+&= \bm{V} (\bm{S}\bm{S} + \lambda \bm{I})^{-1} \bm{S} \bm{U}^T \bm{y}.
+\label{eq:ridge-svd}
+\end{align}
+Both the least-squares and ridge solution are written in the form of $\bm{V} \bm{D} \bm{U}^T \bm{y}$ and distinguished only by the diagonal matrix $\bm{D}$. The elements of $\bm{D}$ are given by
+\begin{equation}
+d_{ii} = \frac{1}{s_{ii}}
+\end{equation}
+and
+\begin{equation}
+d_{ii} = \frac{s_{ii}}{s_{ii}^2 + \lambda},
+\end{equation}
+respectively. When the $s_{ii}$ come close to zero, the inverse singular values explode. If $\lambda>0$, the solution of the ridge regression becomes not only more stable, but also the coefficients of correlated columns (features) of $\bm{X}$ become more strongly shrinkaged. In particular, $|s_{ii}|$ is small when features are correlated, because when being close to collinearity, $\| \bm{X} \bm{v}_i \|$ is small:
+\begin{align}
+\| \bm{X} \bm{v}_i \|^2 &= \bm{v}_i^T \bm{X}^T \bm{X}  \bm{v}_i \\
+&= \bm{v}_i^T \bm{V} \bm{S} \bm{U}^T \bm{U} \bm{S} \bm{V}^T  \bm{v}_i \\ 
+&= \bm{v}_i^T \bm{V} \bm{S}\bm{S} \bm{V}^T  \bm{v}_i \\
+&= s_{ii}^2.  
+\end{align}
+
+\section{Non-negative linear regression}
+Assume we want solve the linear regression (ridge regression) problem of Eq. \ref{eq:ridge}, however, with the constraint that the coefficients $\bm{c}$ should be non-negative:
+\begin{equation}
+\argmin_{\bm{c} \in \mathbb{R}^m} \| \bm{y} - \bm{X} \bm{c} \|^2+ \lambda \| \bm{c} \|^2
+\quad \text{subject to} \quad   \bm{c} \geq \bm{0}.
+\label{eq:nonnegative-ridge}
+\end{equation}
+Rewriting the cost function in Eq. \ref{eq:nonnegative-ridge} yields:
+\begin{align}
+\| \bm{y} - \bm{X} \bm{c} \|^2+ \lambda \| \bm{c} \|^2 
+&= (\bm{y} - \bm{X} \bm{c})^T (\bm{y} - \bm{X} \bm{c}) + \lambda \bm{c}^T \bm{c}\\
+&= \bm{y}^T \bm{y} - \bm{y}^T \bm{X} \bm{c} - (\bm{X} \bm{c})^T \bm{y}  + (\bm{X} \bm{c})^T  \bm{X} \bm{c} + \lambda \bm{c}^T \bm{c} \\
+&= \bm{y}^T \bm{y} -2 \bm{y}^T \bm{X} \bm{c}  + \bm{c}^T \bm{X}^T  \bm{X} \bm{c} + \lambda \bm{c}^T \bm{c}\\
+&= \bm{y}^T \bm{y} -2 \bm{y}^T \bm{X} \bm{c}  + \bm{c}^T (\bm{X}^T  \bm{X} + \lambda \bm{I}) \bm{c} \\
+&= \bm{y}^T \bm{y} +2 \bm{p}^T \bm{c}  + \bm{c}^T \bm{Q} \bm{c},
+\label{eq:nonnegative-cost}
+\end{align}
+where $\bm{Q} = \bm{X}^T  \bm{X} + \lambda \bm{I} $ and $\bm{p} =- \bm{X}^T \bm{y}$. Substituting, Eq. \ref{eq:nonnegative-cost} into Eq. \ref{eq:nonnegative-ridge} gives (in equivalent form):
+\begin{equation}
+\argmin_{\bm{c} \in \mathbb{R}^m} \frac{1}{2} \bm{c}^T \bm{Q} \bm{c} +\bm{p}^T \bm{c} \quad \text{subject to} \quad   \bm{c} \geq \bm{0}.
+\label{eq:nonnegative-ridge}
+\end{equation}
+This problem can be solved by quadratic programming described in Chapter \ref{ch:qp}.
+
+\section{Orthogonal matching pursuit}
+In some applications it is desirable to find linear models $f(\bm{x}) = \bm{x}^T \bm{c}$ where some, many, or most coefficients (elements of $\bm{c}$) are zero. Apart from the least absolute shrinkage and selection operator (LASSO, $\ell_1$ regularization) the orthogonal-matching-pursuit (OMP) algorithm provides a way to find such a model. It is a greedy algorithm which adds at each iteration $k$ a column of $\bm{X}$ with non-zero coefficient to the model (where all columns with zero $c_i$ are removed in some sense) that is based on all added columns during the iterative procedure. The non-zero coefficients are determined via least-squares regression. The added column $\bm{x}^r$ provides that column among all columns $\bm{x}^i$ of $\bm{X}$ which is the closest to the current residual vector $\bm{R} = \bm{y} - f_k$
+\begin{align}
+\|\bm{R} - \bm{x}^r c_r \|^2 \leq \|\bm{R} - \bm{x}^i c_i \|^2 \ \quad \forall i 
+\label{eq:omp-close}
+\end{align}
+where $c_i$ denotes the corresponding least squares solutions in fitting $\bm{R}$. First, let us add $\|\bm{x}^r c_r\|_2^2+ \|\bm{x}^i c_i\|_2^2$ to both sides of Eq. \ref{eq:omp-close}: 
+\begin{align}
+\|\bm{R} - \bm{x}^r c_r \|^2 + \|\bm{x}^r c_r\|^2+ \|\bm{x}^i c_i\|^2 \leq \|\bm{R} - \bm{x}^i c_i \|^2 + \|\bm{x}^r c_r\|^2+ \|\bm{x}^i c_i\|^2 
+\end{align}
+Recall that the least squares solution $c_i$ provides the orthogonal projection $\bm{x}^i c_i$ of $\bm{R}$ onto $\bm{x}_i$. Thus, $\bm{x}^i c_i$ and $\bm{R} - \bm{x}^i c_i$ are orthogonal, i.e. $\langle \bm{R} - \bm{x}^i c_i , \bm{x}^i c_i \rangle = 0$, see Eq. \ref{eq:orthogonal-proj-zero}. This allows us to use the Pythagorean theorem:
+\begin{align}
+\|\bm{R} - \bm{x}^r c_r + \bm{x}^r c_r\|^2+ \|\bm{x}^i c_i\|^2  &\leq \|\bm{R} - \bm{x}^i c_i\ + \bm{x}^i c_i\|^2 + \|\bm{x}^r c_r\|^2 \\
+\Leftrightarrow \|\bm{R}\|^2+ \|\bm{x}^i c_i\|^2          &\leq \|\bm{R}\|^2 + \|\bm{x}^r c_r\|^2 \\
+\Leftrightarrow \|\bm{x}^i c_i\|^2 &\leq  \|\bm{x}^r c_r\|^2 \\
+\Leftrightarrow \| \bm{x}^i\|^2 | c_i|^2  &\leq  \|\bm{x}^r \|^2 | c_r|^2\\
+\end{align}
+Recall that the orthogonal projection coefficient is given by 
+\begin{equation}
+c_i =  \frac{\langle \bm{R}, \bm{x}^i \rangle}{\|\bm{x}^i\|^2} . 
+\end{equation}
+Using that and assuming furthermore that all columns have same lengths $\|\bm{x}^i\|$ (that is the case if they are for example standardized), we obtain:
+\begin{align}
+\| \bm{x}^i\|^2 \frac{|\langle \bm{R}, \bm{x}^i \rangle|^2}{\|\bm{x}^i\|^4}  &\leq  \|\bm{x}^r \|^2  \frac{|\langle \bm{R}, \bm{x}^r \rangle|^2}{\|\bm{x}^r\|^4} \\
+\Leftrightarrow  \frac{|\langle \bm{R}, \bm{x}^i \rangle|^2}{\|\bm{x}^i\|^2}  &\leq   \frac{|\langle \bm{R}, \bm{x}^r \rangle|^2}{\|\bm{x}^r\|^2} \\
+\Leftrightarrow  |\langle \bm{R}, \bm{x}^i \rangle|^2  &\leq   |\langle \bm{R}, \bm{x}^r \rangle|^2 \\
+\Leftrightarrow  |\langle \bm{R}, \bm{x}^i \rangle|  &\leq   |\langle \bm{R}, \bm{x}^r \rangle|.
+\end{align}
+This means that in each iteration, the closest column $\bm{x}^i$ to the residual $\bm{R}$ is given by the highest absolute value of the projection score $|\langle \bm{R}, \bm{x}^i \rangle|$, i.e. the calculation expense at each iteration is only given by calculating $\bm{X}^T \bm{R}$ and determining the index with the highest absolute value.\\
+The OMP algorithm is given by:
+\begin{enumerate}
+\item Initialize $\bm{R}_1 =\bm{y}$ and $\mathcal{X}=\emptyset$ the set of saved columns. Chose a target number $q$ of selected columns (or nonzero coefficients) for the linear model and let the iteration counter $k=1$.
+\item Find the closest $\bm{x}^i$ to $\bm{R}_k$ and add it to $\mathcal{X}$. 
+\item Build the matrix $\tilde{\bm{X}}$ with all $\bm{x}^i \in \mathcal{X}$. Calculate $\bm{c}^* = \argmin_{\bm{c} \in \mathbb{R}^{k}} \| \bm{y} - \tilde{\bm{X}} \bm{c} \|^2$. Let $\bm{R}_{k+1} =\bm{y} - \tilde{\bm{X}} \bm{c}^*$.
+\item If $k=q$, stop. Otherwise set $k=k+1$ and return to the 2. step.
+\end{enumerate}
+
+\section{Kernel ridge regression} \label{sec:krr}
+The kernel ridge regression is a generalization of the linear ridge regression \ref{eq:ridge} towards considering nonlinar models $f$. Consider again the general optimization problem in Eq. \ref{eq:opt-ml} with the squared error loss $ L(f(\bm{x}_i),  y_i) = (f(\bm{x}_i)- y_i)^2$ and, moreover, $r(f) = \| f \|^2_\mathcal{F}$ for a reproducing kernel Hilbert space $\mathcal{F}$\footnote{A Hilbert space is a reproducing kernel Hilbert space if it has a bounded linear evaluation function. For more details we refer to the corresponding literature of functional analysis.}. Then, according to the representer theorem, the solution to the optimization problem has the form
+\begin{equation}
+f(\cdot) = \sum_{i=1}^n \alpha_i k(\cdot, \bm{x}_i)
+\label{eq:krr-model} 
+\end{equation}
+where $k: \mathcal{X} \times \mathcal{X} \rightarrow \mathbb{R}$ is the associated positive-definite real-valued kernel on our input space $\mathcal{X}$. It can be shown that the coefficients $\{ \alpha_i \}$ are a closed-form solution $\bm{\alpha} = (\bm{K}+\lambda \bm{I})^{-1} \bm{y}$ to the optimization problem (kernel ridge regression)
+\begin{equation}
+\argmin_{\bm{\alpha} \in \mathbb{R}^n} \| \bm{y} - \bm{K} \bm{\alpha} \|^2+ \lambda  \bm{\alpha}^T \bm{K} \bm{\alpha},
+\label{eq:kernel-ridge}
+\end{equation}
+where $\bm{K} \in \mathbb{R}^{n \times n}$ represents the matrix with elements $K_{ij} = k(\bm{x}_i, \bm{x}_j)$. The fact that the non-linear function \ref{eq:krr-model} is learnt by a linear learning algorithm, i.e. the closed-form expression, is considered as the \textit{kernel trick}. For a linear kernel $k(\bm{x}_i, \bm{x}_j) = \bm{x}_i \cdot  \bm{x}_j$ the \mbox{model \ref{eq:krr-model}} becomes a linear function and equals the linear model that results from the optimization problem \ref{eq:ridge} of the linear ridge regression. For instance, the kernel ridge regression can alternatively be derived by kernelizing the linear ridge regression and, moreover, introducing a potentially nonlinear feature map $\phi$ such that $k(\bm{x}_i, \bm{x}_j) = < \phi(\bm{x}_i),   \phi(\bm{x}_j)>$. However, $\phi$ does not need to be known and rather the kernel is specified directly. A typical (nonlinear) kernel is given by the Gaussian kernel $k(\bm{x}_i, \bm{x}_j) = \exp(- \frac{\|\bm{x}_i -  \bm{x}_j\|^2}{2 \sigma^2})$. Note that the kernel function is often viewed as a similarity measurement between two data points.\\
+In practice, we solve the linear system $\bm{K} \bm{\alpha}=\bm{y}$ using the Cholesky decomposition and forward and back substitution as described in section \ref{sec:cholesky}.
+
+\section{Logistic regression}
+Consider the binary classification problem with $y_i \in \{0, 1 \}$. The logistic regression model
+\begin{align}
+f(\bm{x}, y) = P(y| \bm{x}; \bm{c})= P(Y=1| \bm{x}; \bm{c})^y  P(Y=0| \bm{x}; \bm{c})^{(1-y)} 
+\end{align}
+calculates the probability of a data point $\bm{x}$ for having the label $y$, where
+\begin{align}
+ P(Y=1| \bm{x}; \bm{c}) &= \frac{1}{1 + e^{- \bm{x}^T \bm{c}}} \\
+P(Y=0| \bm{x}; \bm{c}) &= 1 - P(Y=1| \bm{x}; \bm{c}) = 1 - \frac{1}{1 + e^{- \bm{x}^T \bm{c}}}. 
+\end{align}
+Assuming that the $\bm{x}_i$ are independent and identically distributed random variables, their joint probability distribution is given by
+\begin{equation}
+P(y_1, y_2, ..., y_n| \bm{x_1}, \bm{x}_2, ..., \bm{x}_n| \bm{c}) = \prod_{i=1}^n P(y_i| \bm{x_i}; \bm{c}).
+\end{equation}
+The right side is equal to the likelihood function $L(\bm{c}|y_1, y_2, ..., y_n| \bm{x_1}, \bm{x}_2, ..., \bm{x}_n)$ which, however, treats $\bm{c}$ as a parameter and the input-output pairs as given. In order to determine $\bm{c}$ such that the observed data is most probable, $L$ is maximized or, in practice, $\log L$:
+\begin{align}
+ \log L(\bm{c}|y_1, y_2, ..., y_n| \bm{x_1}, \bm{x}_2, ..., \bm{x}_n) &= \log \prod_{i=1}^n P(y_i| \bm{x_i}; \bm{c}) \\
+ &=  \sum_{i=1}^n \log P(y_i| \bm{x_i}; \bm{c}).
+\end{align}
+We solve the optimization problem
+\begin{align}
+\max_{\bm{c} \in \mathbb{R}^m} \sum_{i=1}^n \log P(y_i| \bm{x_i}; \bm{c})
+\end{align}
+via gradient descent.
+
+\section{Support vector machines}
+Consider the binary classification problem with $y_i \in \{ 1, -1 \}$. Let us target the goal to find some hyperplane defined by
+\begin{equation}
+\bm{x} \bm{w} - b =0
+\label{eq:hyper}
+\end{equation} 
+that separates the two classes in the input space of the data represented by $\bm{X}$. In Eq. \ref{eq:hyper}, $\bm{w}$ denotes the normal vector to the hyperplane and $\frac{b}{\| \bm{w} \|}$ the offset of the hyperplane from the origin along $\bm{w}$. Assume for the moment that the data is linearly separable. The SVM determines $\bm{w}$ and $b$ (there is at least one with $y=1$ and one with $y=-1$) such that the closest data points (there is at least one with $y=1$ and one with $y=-1$) to the hyperplane have a distance to it of $\frac{1}{\| \bm{w} \|}$ along $\bm{w}$ if $y=1$ and along $-\bm{w}$ if $y=-1$: 
+\begin{align}
+\bm{x}_i \bm{w} - b &\geq 1 \quad   \text{if} \quad   y_i=1,\\
+\bm{x}_i \bm{w} - b &\leq -1 \quad   \text{if} \quad   y_i=-1
+\end{align}
+for all data points $i$. This can be rewritten:
+\begin{align}
+y_i(\bm{x}_i \bm{w} - b) &\geq 1.
+\end{align}
+That means the closest data points $\bm{x}_i$ (support vectors) lie on two hyperplanes with the same normal vector $\bm{w}$ which define a margin of $\frac{2}{\| \bm{w} \|}$ between the two classes. \\
+In case the data is not linearly separable, we need to introduce a set of slack variables $\xi_i \geq 0$ which allow for misclassified data points:
+\begin{align}
+\bm{x}_i \bm{w} - b &\geq 1 - \xi_i\quad   \text{if} \quad   y_i=1,\\
+\bm{x}_i \bm{w} - b &\leq -1 + \xi_i \quad   \text{if} \quad   y_i=-1
+\end{align}
+for all data points $i$. This can be rewritten:
+\begin{align}
+y_i(\bm{x}_i \bm{w} - b) &\geq 1 - \xi_i.
+\end{align}
+Together with the further criterion that the margin between the two classes should be maximal, the SVM-optimization problem becomes:
+\begin{align}
+\min_{\bm{w}, b, \bm{\xi}} \frac{1}{2} \| \bm{w} \|^2 + C \sum_{i=1}^n \xi_i \quad \text{subject to} \quad   y_i(\bm{x}_i \bm{w} - b) &\geq 1 - \xi_i \quad \text{and} \quad \xi_i \geq 0, \quad  \forall i.
+\end{align}
+Note that the optimization problem is fully described by those data points that do not fulfill $y_i(\bm{x}_i \bm{w} - b) > 1$. A consequence of minimizing the slack variables $\xi_i$ is that they will be zero for data points that are on the correct side of the hyperplane margin, i.e. $y_i(\bm{x}_i \bm{w} - b) \geq 1$. In case of misclassifed data points and also ones that are correctly classified but inside the margin, the consequence of minimizing the $\xi_i$ is the that their sizes are not larger than the respective distances of the positions of the data point along $\bm{w}$ to the correct side of the hyperplane margin. However, given the side constraint that $\xi_i$ should be at least the distance to the correct side of the hyperplane margin, we have $\xi_i = 1 - y_i(\bm{x}_i \bm{w} - b) $ for misclassified data points. With a large $C$, we will put more weight on minimizing the slack variables $\xi_i$. As a result, increasing $C$ will lead to decreasing the margin of the hyperplane, because the distance of the data points which are not on the correct side of the margin needs to become small (or just because less weight is put on minimizing $\| \bm{w} \|$, i.e. the inverse of the margin). If the model complexity allows such as with a flexible model based on some (nonlinear) kernel (this will be introduced a few paragraphs later), instead of a linear model as discussed till now, increasing $C$ will lead to a more \textit{wiggly} that decreases the number of mislassified data points, deacreasing the number of $\xi_i>0$. Decreasing $C$ will lead to a \textit{coarser} model that allows for misclassified data points (taken care of by sufficiently large $\xi_i$), however, might be more robust when predicting the labels of new data points. \\
+We will solve this problem using the method of Lagrange multipliers, where the multipliers $\alpha_i \geq 0$ and $\mu_i \geq 0$, take care of the side constraints. The respective Lagrangian is given by:
+\begin{align}
+\mathcal{L} &= \frac{1}{2} \| \bm{w} \|^2 + C \sum_{i=1}^n \xi_i - \sum_{i=1}^n \alpha_i[ y_i(\bm{x}_i \bm{w} - b) -1 + \xi_i] - \sum_{i=1}^n \mu_i \xi_i \label{eq:first}\\ 
+&= \frac{1}{2} \| \bm{w} \|^2 + C \sum_{i=1}^n \xi_i - \bm{w} \sum_{i=1}^n \alpha_i y_i \bm{x}_i  + b \sum_{i=1}^n \alpha_i y_i + \sum_{i=1}^n \alpha_i - \sum_{i=1}^n \alpha_i \xi_i - \sum_{i=1}^n \mu_i \xi_i \\
+&= \frac{1}{2} \| \bm{w} \|^2 - \bm{w} \sum_{i=1}^n \alpha_i y_i \bm{x}_i  + b \sum_{i=1}^n \alpha_i y_i+ \sum_{i=1}^n \alpha_i + \sum_{i=1}^n (C - \alpha_i - \mu_i) \xi_i
+\label{eq:svm-lagrangian-primary}
+\end{align}
+Minimizing the Lagrangian with respect to $\bm{w}$ and $b$ and $\xi_i$ yields:
+\begin{align}
+\frac{\partial \mathcal{L}_\text{P}}{\partial \bm{w}} = 0 \quad  \Rightarrow \bm{w} = \sum_{i=1}^n \alpha_i y_i \bm{x}_i, \label{eq:svm-sc1}\\
+\frac{\partial \mathcal{L}_\text{P}}{\partial b} = 0 \quad  \Rightarrow \sum_{i=1}^n \alpha_i y_i  = 0. \label{eq:svm-sc2}\\
+\frac{\partial \mathcal{L}_\text{P}}{\partial \xi_i} = 0 \quad  \Rightarrow C - \alpha_i - \mu_i =0. \label{eq:svm-sc3}
+\end{align}
+By substituting Eq. \ref{eq:svm-sc1}, \ref{eq:svm-sc2}, and \ref{eq:svm-sc3} into \ref{eq:svm-lagrangian-primary}, we obtain a new Lagrangian:
+\begin{align}
+\mathcal{L}_\text{D} &= \frac{1}{2} \| \bm{w} \|^2 - \bm{w} \sum_{i=1}^n \alpha_i y_i \bm{x}_i  + b \underbrace{\sum_{i=1}^n \alpha_i y_i}_{=0}+ \sum_{i=1}^n \alpha_i + \sum_{i=1}^n \underbrace{(C - \alpha_i - \mu_i)}_{=0} \xi_i\\
+&= \frac{1}{2} \| \bm{w} \|^2 - \bm{w} \sum_{i=1}^n \alpha_i y_i \bm{x}_i +\sum_{i=1}^n \alpha_i \\
+&= \frac{1}{2} \sum_{i,j} \alpha_i \alpha_j y_i y_j \bm{x}_i \bm{x}_j- \sum_{i,j} \alpha_i \alpha_j y_i y_j \bm{x}_i \bm{x}_j  + \sum_{i=1}^n \alpha_i\\ 
+&= -\frac{1}{2} \sum_{i,j} \alpha_i \alpha_j y_i y_j \bm{x}_i \bm{x}_j  + \sum_{i=1}^n \alpha_i\\
+&= -\frac{1}{2} \bm{\alpha}^T \bm{H} \bm{\alpha}  + \sum_{i=1}^n \alpha_i,
+\label{eq:svm-lagrangian-dual}
+\end{align}
+where $H_{ij} = y_i y_j \bm{x}_i \bm{x}_j $. With that and the fact that Eq. \ref{eq:svm-sc3} and $\mu_i > 0$ lead to $ 0 \leq \alpha_i \leq C$, the optimization problem becomes the dual problem
+\begin{align}
+\max_{\bm{\alpha}} \sum_{i=1}^n \alpha_i -\frac{1}{2} \bm{\alpha}^T \bm{H} \bm{\alpha}  \quad \text{subject to} \quad   0 \leq \alpha_i \leq C \ \ \forall i \quad \text{and} \quad \sum_{i=1}^n \alpha_i y_i  = 0,
+\end{align} 
+which can be solved via quadratic programming, see Chapter \ref{ch:qp}. Recall the Lagrange duality theory: the primal problem is given by
+\begin{align}
+\min_{\bm{w}, b, \bm{\xi}}\left( \max_{\bm{\alpha}\geq0, \bm{\mu}\geq0} \mathcal{L}(\bm{w}, b, \bm{\alpha}, \bm{\mu}, \bm{\xi}) \right) = \min_{\bm{w}, b, \bm{\xi}} \mathcal{L_\text{P}}
+\end{align}
+and the dual one by
+\begin{align}
+\max_{\bm{\alpha}\geq0, \bm{\mu}\geq0}  \left(  \min_{\bm{w}, b, \bm{\xi}} \mathcal{L}(\bm{w}, b, \bm{\alpha}, \bm{\mu}, \bm{\xi}) \right) = \max_{\bm{\alpha}\geq0, \bm{\mu}\geq0}  \mathcal{L_\text{D}}.
+\end{align}
+Note that when considering the side constraints, the maximum of the $\mathcal{L_\text{D}}$ with respect to $\bm{\alpha}$ (and $\bm{\mu}$) is $\frac{1}{2} \|\bm{w} \|^2$. Assume for a given $\bm{w}$ and $b$, some data points fulfill $y_i(\bm{x}_i \bm{w} - b) > 1 -\xi_i$ (then also $y_i(\bm{x}_i \bm{w} - b) > 1$ because $\xi_i$ is minimized). Then for the $\alpha_i$-based term in Eq. \ref{eq:first}, we have:
+\begin{align}
+ - \sum_{i=1}^n \alpha_i[ y_i(\bm{x}_i \bm{w} - b) -1 + \xi_i]  <0.
+\end{align}
+Maximizing with respect to $\alpha_i$ yields $\alpha_i=0$ for these (non-support-vector) data points. 
+We define the set $S$ of support vectors $\bm{x_s}$ which are characterized by $\alpha_s>0$. We rewrite the weight vector as a linear combination of the support vectors, i.e. we rewrite Eq. \ref{eq:svm-sc1} to 
+\begin{align}
+\bm{w} = \sum_{s \in S}^n \alpha_s y_s \bm{x}_s.
+\end{align}
+Given furthermore that the support vectors fulfill $y_i(\bm{x}_i \bm{w} - b) = 1$, we obtain from
+\begin{align}
+y_i &= \underbrace{y_i^2}_{=1}(\bm{x}_i \bm{w} - b) \\
+& = \bm{x}_i \sum_{s \in S}^n \alpha_s y_s \bm{x}_s - b 
+\end{align}
+a way to calculate $b$:
+\begin{align}
+b =  \sum_{s \in S}^n \alpha_s y_s \bm{x}_i \bm{x}_s - y_i.
+\end{align}
+
+The model can be extended to a nonlinear decision boundary by kernelizing the linear problem (see kernel ridge regression section) by introducing a potentially nonlinear feature map $\phi(\bm{x}_i)$ and a kernel given by an inner product $k(\bm{x}_i ,\bm{x}_j) = <\phi(\bm{x}_i) , \phi(\bm{x}_j)>$. Then $H_{ij} = y_i y_j k(\bm{x}_i, \bm{x}_j)$ and the original problem can be reproduced by  considering a linear kernel $k(\bm{x}_i ,\bm{x}_j) = \bm{x}_i \bm{x}_j$. 
+
+
+
+
+
+
+
+
+
+\end{document}
+
+
+
+
