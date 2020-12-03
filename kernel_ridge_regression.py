@@ -9,17 +9,6 @@ class KernelRidgeRegression(object):
         self.sigma = sigma
         self.kernel = kernel
     
-    def get_kernel(self, X1, X2):
-        """Gaussian kernel."""
-        X_cart_diff = X1[:, np.newaxis, :] - X2
-        return np.exp(-0.5 * np.linalg.norm(X_cart_diff, axis=2)**2 / self.sigma**2)
-
-    def get_kernel(self, X1, X2):
-        try:
-            return self.kernel(X1, X2, sigma=self.sigma)
-        except:
-            return self.kernel(X1, X2) 
-
     def fit(self, X, Y):
         self.X_train = X
 
@@ -34,6 +23,12 @@ class KernelRidgeRegression(object):
     def predict(self, X):
         K = self.get_kernel(X, self.X_train)
         return np.dot(K, self.alphas)
+    
+    def get_kernel(self, X1, X2):
+        try:
+            return self.kernel(X1, X2, sigma=self.sigma)
+        except:
+            return self.kernel(X1, X2) 
 
         
 if __name__ == '__main__':

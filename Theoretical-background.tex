@@ -1,25 +1,16 @@
 \RequirePackage{fix-cm} 											% 
 \documentclass[11pt, a4paper, parskip=half*, bibliography=totoc, cleardoublepage=empty, final,
 numbers=noenddot]{scrbook}
-
-
 \usepackage[ansinew]{inputenc}                                                                          
 \usepackage[automark]{scrpage2}                                                                        
 \usepackage{fixltx2e}                                                                                           
-
 \usepackage[linktocpage]{hyperref}
 \usepackage{breakurl}
-
-
-
 \usepackage[english]{babel}
 \usepackage{multicol} 
 \usepackage{multirow}	
-
 \usepackage{cite}
-
 \usepackage{bm}
-
 \usepackage{amsmath}
 \usepackage{amsthm}
 \usepackage{amssymb}
@@ -28,15 +19,11 @@ numbers=noenddot]{scrbook}
 \usepackage{fixmath}
 \usepackage{braket}
 \DeclareMathOperator*{\argmin}{arg\,min}
-
 \usepackage[margin=10pt,labelfont=bf]{caption}
-
 \usepackage[top=2.5cm,left=3.5cm,right=2.5cm,bottom=3cm]{geometry}
 \usepackage[onehalfspacing]{setspace}
 \usepackage{lmodern}
 \captionsetup{justification=raggedright,singlelinecheck=false}
-
-
 \begin{document}
 \chapter{Linear algebra}
 Note that we consider only real values.
@@ -181,11 +168,6 @@ they all have the same eigenvalues, as:
 \end{align}
 So every eigenvalue $\lambda$ of $\bm{A}_{k+1}$ is also an eigenvalue of $\bm{A}_{k}$, where the corresponding eigenvector of $\bm{A}_{k}$ is  $\bm{Q}_k \bm{v}$. And one can similarly show that every eigenvalue of $\bm{A}_{k}$ is an eigenvalue of $\bm{A}_{k+1}$. \\
 Under some conditions, the matrices $\bm{A}_{k}$ will converge against a triangular matrix in the iterative procedure. The eigenvalues of a triangular matrix are given by its diagonal elements. If $\bm{A}$ is symmetric, then the product of the matrices $\cdots \bm{Q}_{2} \bm{Q}_{1} \bm{Q}_{0}$ yield a matrix whose columns are the eigenvectors of $\bm{A}$.
-
-
-
-
-
 \section{Singular value decomposition}
 The matrix $\bm{A} \in \mathbb{R}^{m \times n}$ is decomposed into:
 \begin{equation}
