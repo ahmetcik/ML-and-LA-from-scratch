@@ -1,8 +1,8 @@
 import numpy as np
 from quadratic_programming import qp
 class NonNegativeLinearRegressor(object):
-    """ Class for computing least squares solution if lambda_l2 is zero,
-        otherwise ridge regression."""
+    """ Class for computing nonnegative least squares solution if lambda_l2 is zero,
+        otherwise nonnegative ridge regression."""
 
     def __init__(self, lambda_l2=0., intercept=True, **kwargs):
         self.intercept = intercept
